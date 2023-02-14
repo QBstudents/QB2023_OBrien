@@ -1,6 +1,6 @@
 ---
 title: '7\. Worksheet: Diversity Synthesis'
-author: "Student Name; Z620: Quantitative Biodiversity, Indiana University"
+author: "Joy O'Brien; Z620: Quantitative Biodiversity, Indiana University"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: pdf_document
 geometry: margin=2.54cm
@@ -72,6 +72,60 @@ In smaller groups, take 15 minutes to brainstorm questions, code, statistical te
 **Answer 1:** Use the space below to generate a rarefaction curve/sample coverage based on the data we collected in class for each community. Make sure to annotate your code using # symbols so others (including instructors) understand what you have done and why you have done it. 
 
 ```{r}
+# Set up
+rm(list = ls())
+getwd()
+setwd("~/GitHub/QB2023_OBrien/2.Worksheets/7.DiversitySynthesis")
+require("vegan")
+
+# Load packages 
+package.list <- c('vegan', 'tidyverse', 'ggplot2', 'dplyr', 'broom')
+for (package in package.list) {
+  if(!require(package, character.only = TRUE, quietly = TRUE)) {
+    install.packages(package)
+  }
+  library(c(package), character.only = TRUE)
+}
+```
+
+```{r}
+# Sampling coverage and rarefaction curves
+
+# Load necessary packages
+library(vegan)
+
+# Load data
+gummy <- read.csv("/Users/joyobrien/GitHub/QB2023_OBrien/2.Worksheets/7.DiversitySynthesis/class_data.csv")
+gummy <- as.matrix(gummy)
+
+# Subset the data 
+gummy_sbys <- (gummy, grepl(("Community")))???
+gummy_subset <- subset.matrix(gummy, 
+# Calculating observed richness
+specnumber(gummy)
+
+# Function for Good's coverage
+C <- function(x = ""){
+  1 - rowSums(x == 1) / rowSums(x)
+}
+# Calculating Good's Coverage
+C(gummy)
+
+# calculate observed richness of community
+# gummy.S <- S.obs(gummy)
+
+# Idenfify sample with fewest occupancies 
+min.N <- min(rowSums(gummy))
+
+# Rarifying to rarefy each sample to this level
+S.rarefy <- rarefy(x = gummy, sample = min.N, se = TRUE)
+
+# Plotting rarefaction results
+rarecurve(x = gummy, step = 20, col = "blue", cex = 0.6, las = 1)
+abline(0, 1, col = 'red')
+text(1500, 1500, "1:1", pos = 2, col = 'red')
+
+
 ```
 
 
@@ -84,11 +138,73 @@ What is the variation among the samples in your group and between the communitie
 **Answer 2a - Analysis:** Use the space below for code that is being used to analyze your data and test your hypotheses on your chosen alpha diversity tool. Make sure to annotate your code using # symbols so others (including instructors) understand what you have done and why you have done it.
 
 ```{r}
+# Calculating Shannon diversity
+diversity(site1, index = "shannon")
+# Calculating Simpson index 
+diversity(site1, "inv")
+diversity(site1, "simp")
+
+# Effective number of species/Hill numbers
+# Simulate communities
+C1 <- data.frame(t(rep(1, 500))); colnames(C1) <- paste("sp", 1:500)
+C2 <- data.frame(t(rep(1, 250))); colnames(C2) <- paste("sp", 1:250)
+specnumber(C1)
+specnumber(C2)
+
+# Calculate shannon diversity
+H1 <- diversity(C1, index = "shannon")
+H2 <- diversity(C2, index = "shannon")
+H1; H2
+# Calculate shannon's entropy
+H_all <- matrix(ncol = 2, nrow = 1000)
+for(i in 1:1000) {
+  C <- data.frame(t(rep(1, i)))
+  colnames(C) = paste("sp", 1:i)
+  H_all[i, 1] <- i
+  H_all[i,2] <- diversity(C, index = "shannon")
+}
+
+plot(H_all[,1], H_all[,2], xlab = "Species Richness", 
+     ylab = "Shannon Diversity (entropy)")
+
+# Calculate exponential Shannon's entropy (equal to the Hill number q = 1)
+H1_Hill <- exp(diversity(C1, index = "shannon"))
+H2_Hill <- exp(diversity(C2, index = "shannon"))
+H1_Hill; H2_Hill
+
+# Calculate for each richness level to compare Shannon entropy with Hill number 1 (exponential)
+H_all_Hill <- matrix(ncol = 2, nrow = 1000)
+for(i in 1:1000) {
+  C = data.frame(t(rep(1, i)))
+  H_all_Hill[i, 1] = i 
+  H_all_Hill[i, 2] = exp(diversity(C, index = "shannon"))
+}
+plot(H_all_Hill[,1], H_all_Hill[,2], xlab = "Species Richness",
+     ylab = "Exponential Shannon Diversity (ENS)")
+
+# Generating diversity profile
+profile <- function(C) {
+  cbind(seq(0, 7, by = 0.11),
+        unlist(lapply(seq(0, 7, by = 0.11), function(q) sum(apply(C, 1, function(x)
+          (x/sum(x))^q))^(1/(1 - q))))) }
+set.seed(42)
+C3 <- data.frame(t(sample(1:1000, 500))); colnames(C3) = paste("sp", 1:500)
+C3_profile <- profile(C3)
+plot(C3_profile[,1], C3_profile[,2], ylim=c(300,500), cex = 2, 
+     xlab = "q exponent", ylab = "Diversity (ENS)")
 ```
 
 **Answer 2b - Plot:** With your analysis, create one (and only one, although it can have multiple panels) *publication-quality* figure.
 
 ```{r}
+library(ggplot2)
+# Plotting errors of Shannon entropy for source communities 
+ggplot(data = com_div_sum, aes(x = community, y = mean)) +
+  geom_point(size = 4) + 
+  geom_errorbar(aes(ymin = mean-sem, ymax = mean+sem), width =0.2)+ 
+  ylab("Shannon entropy (H')") +
+  xlab("Source Community") +
+  theme_bw()
 ```
 
 **Answer 2c - Interpret results:** Write an informative yet succinct (~5 sentences) caption that creates a "stand-alone" figure. Take a peek at figures and figure captions in a paper published in your favorite journal for inspiration.
