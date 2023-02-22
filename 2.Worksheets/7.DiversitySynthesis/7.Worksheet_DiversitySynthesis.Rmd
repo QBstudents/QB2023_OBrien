@@ -1,6 +1,6 @@
 ---
 title: '7\. Worksheet: Diversity Synthesis'
-author: "Student Name; Z620: Quantitative Biodiversity, Indiana University"
+author: "Joy O'Brien; Z620: Quantitative Biodiversity, Indiana University"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: pdf_document
 geometry: margin=2.54cm
@@ -68,10 +68,61 @@ In smaller groups, take 15 minutes to brainstorm questions, code, statistical te
 ### 1) Sampling coverage and rarefaction curves
 
 **Question 1:** Using this data, explore how well your sampling effort was. Compare your sampling efforts with other groups. Do you think that your samples cover the actual diversity found in each source community? You can use rarefaction and coverage tools you have learned earlier. 
+> Answer: Observed richness among communities ranges from 20-28 (meaning that is the number of species detected within the sample). My observed richness was the lowest (20 species). In terms of Good's coverage, this value ranged from 0.73 to 0.95 indicating that there was variation in sampling efforts among students. The rare curve shown below indicates that as sample size increased, the amount of different species detected started to become more stationary between 20-25 species. The differences that we see here between sites is largely due to differences sample size which dimishes the chance of detecting all species within the community.
 
 **Answer 1:** Use the space below to generate a rarefaction curve/sample coverage based on the data we collected in class for each community. Make sure to annotate your code using # symbols so others (including instructors) understand what you have done and why you have done it. 
 
 ```{r}
+# Set up
+rm(list = ls())
+getwd()
+setwd("~/GitHub/QB2023_OBrien/2.Worksheets/7.DiversitySynthesis")
+require("vegan")
+
+# Load packages 
+package.list <- c('vegan', 'tidyverse', 'ggplot2', 'dplyr', 'broom')
+for (package in package.list) {
+  if(!require(package, character.only = TRUE, quietly = TRUE)) {
+    install.packages(package)
+  }
+  library(c(package), character.only = TRUE)
+}
+```
+
+```{r}
+# Sampling coverage and rarefaction curves
+
+# Load necessary packages
+library(vegan)
+
+# Load data
+gummy <- read.csv("/Users/joyobrien/GitHub/QB2023_OBrien/2.Worksheets/7.DiversitySynthesis/class_data.csv")
+
+# Removing the first two column from the dataset so we can work with site by species matrix
+new.gummy <- gummy[ ,3:32]
+
+# Calculating observed richness
+specnumber(new.gummy)
+
+# Function for Good's coverage
+C <- function(x = ""){
+  1 - rowSums(x == 1) / rowSums(x)
+}
+# Calculating Good's Coverage
+C(new.gummy)
+
+# Idenfify sample with fewest occupancies 
+min.N <- min(rowSums(new.gummy))
+
+# Rarifying to rarefy each sample to this level
+S.rarefy <- rarefy(x = new.gummy, sample = min.N, se = TRUE)
+
+# Plotting rarefaction results
+rarecurve(x = new.gummy, step = 20, col = "blue", cex = 0.6, las = 1)
+abline(0, 1, col = 'red')
+text(1500, 1500, "1:1", pos = 2, col = 'red')
+
+
 ```
 
 
@@ -81,36 +132,153 @@ In smaller groups, take 15 minutes to brainstorm questions, code, statistical te
 
 What is the variation among the samples in your group and between the communities of other groups for the alpha diversity indices? Generate a hypothesis around the diversity metrics you chose and test your hypothesis. Interpret your findings.
 
+> Answer: My site has a shannon diversity metric of 2.78 which is the lowest shannon diversity value from community B (ranged from 2.78 to 2.97). Since my site is located within community B, I hypothesize that Community A is more diverse than Community B. Shannon diversity indices for community A range between 2.9 and 3.1 which is larger than those for community B. Additionally, the rank abundance curves for community A and community B both indicate that the abundance among species is unequally distributed which explains the variation in Shannon diversity values.  
+
 **Answer 2a - Analysis:** Use the space below for code that is being used to analyze your data and test your hypotheses on your chosen alpha diversity tool. Make sure to annotate your code using # symbols so others (including instructors) understand what you have done and why you have done it.
 
 ```{r}
+
+# Wrangling the data 
+str(gummy)
+
+# Convert species numbers to numeric
+new.gummy [1:30] = lapply(new.gummy[1:30], FUN =
+                            function(y){as.numeric(y)})
+# Sub-setting community data
+A <- new.gummy[1:4, ]
+B <- new.gummy[5:8, ]
+
+# Calculating Shannon diversity 
+# Community A 
+A_div <- diversity(A, index = "shannon")
+A_divmat <- as.matrix(A_div)
+AH <- mean(A_divmat)
+# Community B
+B_div <- diversity(B, index = "shannon")
+B_divmat <- as.matrix(B_div)
+BH <- mean(B_divmat)
+
+# Combine shannon estimates for communities A and B into one data frame
+diversity <- merge(AH, BH)
+# RAC 
+
+RAC <- function(x = ""){
+  x.ab = x[x > 0]
+  x.ab.ranked = x.ab[order(x.ab, decreasing = TRUE)]
+  as.data.frame(lapply(x.ab.ranked, unlist))
+  return(x.ab.ranked)
+}
+# RAC for community A
+rac <- RAC(x = A)
+ranks <- as.vector(seq(1, length(rac)))
+opar <- par(no.readonly = TRUE)
+par(mar = c(5.1, 5.1, 4.1, 2.1))
+plot(ranks, log(rac), type = 'p', axes = F, 
+     xlab = "Rank in abundance", ylab = "log(abundance)", 
+     las = 1, cex.lab = 1.4, cex.axis = 1.25)
+
+box()
+axis(side = 1, labels = T, cex.axis = 1.25)
+axis(side = 2, las = 1, cex.axis = 1.25, 
+     labels = c(1, 2, 5, 10, 20), at = log(c(1, 2,5, 10, 20)))
+
+par <- opar
 ```
 
 **Answer 2b - Plot:** With your analysis, create one (and only one, although it can have multiple panels) *publication-quality* figure.
 
 ```{r}
+# RAC for community B
+rac <- RAC(x = B)
+ranks <- as.vector(seq(1, length(rac)))
+opar <- par(no.readonly = TRUE)
+par(mar = c(5.1, 5.1, 4.1, 2.1))
+plot(ranks, log(rac), type = 'p', axes = F, 
+     xlab = "Rank in abundance", ylab = "log(abundance)", 
+     las = 1, cex.lab = 1.4, cex.axis = 1.25)
+
+box()
+axis(side = 1, labels = T, cex.axis = 1.25)
+axis(side = 2, las = 1, cex.axis = 1.25, 
+     labels = c(1, 2, 5, 10, 20), at = log(c(1, 2,5, 10, 20)))
+
+par <- opar
 ```
 
 **Answer 2c - Interpret results:** Write an informative yet succinct (~5 sentences) caption that creates a "stand-alone" figure. Take a peek at figures and figure captions in a paper published in your favorite journal for inspiration.
-
+> Answer: Figure 1. Rank abundance curve for Community B detailing species richness and evenness. Community B contains 30 different species and 4 sites that were randomly sampled (sample size varied as did species composition). The x-axis represents the species based on abundance with the most abundant species given a rank of 1. The y-axis represents relative abundance of species. The slope we see here indicates that there is low evenness in the community due to high-ranking species having the highest abundance when compared to lower ranking species. This is a common trend in community ecology. 
 
 ### 3) Beta diversity
 
 **Question 3:** Measure beta diversity using ordination and multivariate statistics methods. You can create a PCoA plot, based on Bray-Curtis dissimilarity, of sites and communities using different shape and color codes. Then, you can use a Permanova to test if there are differences between communities. Generate a hypothesis around your chosen analysis and test your hypothesis. Interpret your findings.
 
 Can you detect compositional differences between each source community sampled?
+> Answer: Yes. I hypothesized for the beta diversity analysis is that there will be compositional differences between sites within gummy communities (given that we know there are diversity differences between communities). Based on analysis, there are significant compositional differences between communities A and B as indicated via a Permanova test (p-value = 0.029). We can also see the differences in community composition with the PCoA plot shown below. PCoA axis 1 explains 41.3 % of the variation and PCoA axis 2 explains 20.2% of the variation. Based on the permanova results and the way that the sites are clustering in the ordination, community type may explain the compositional differences within the sites. I also noticed that sites 1, 2, 3, and 4 shown in the PCoA are more loosely clustered than the sites from community B, this may support my hypothesis from the previous section that community A is more diverse than community B. 
 
 **Answer 3a - Analysis:** Use the space below for code that is being used to analyze your data and test your hypotheses on your chosen beta diversity tool. Make sure to annotate your code using # symbols so others (including instructors) understand what you have done and why you have done it.
 
 ```{r}
+
+# Obtaining species only
+species <- gummy[ ,3:32]
+str(species)
+# Convert species numbers to numeric
+species [1:30] = lapply(species[1:30], FUN =
+                            function(y){as.numeric(y)})
+str(species)
+# Calculate distance using Bray-Curtis
+species.d <- vegdist(species, method = "bray")
+
+# Name communities via a factors vector
+community <- c(rep("A", 4), rep("B", 4)) 
+# Permanova
+adonis2(species ~ community, method = "bray", permutations = 999)
+
 ```
 
 **Answer 3b - Plot:** With your analysis, create one (and only one, although it can have multiple panels) *publication-quality* figure.  
 
 ```{r}
+library(viridis)
+library(lattice)
+
+order <- rev(attr(species, "Labels"))
+
+species.d <- as.matrix(species.d)
+
+gummy.pcoa <- cmdscale(species.d, eig = TRUE, k = 3)
+# Quantify percent variation explained by the first three axes
+explainvar1 <- round(gummy.pcoa$eig[1] / sum(gummy.pcoa$eig), 3) * 100
+explainvar2<- round(gummy.pcoa$eig[2] / sum(gummy.pcoa$eig), 3) * 100
+explainvar3 <- round(gummy.pcoa$eig[3] / sum(gummy.pcoa$eig), 3) * 100
+sum.eig <- sum(explainvar1, explainvar2, explainvar3)
+
+# Define plot parameters
+par(mar =  c(5.1, 4.1, 4.1, 2.1) + 0.1)
+
+# Initiate plot 
+plot(gummy.pcoa$points[ ,1], gummy.pcoa$points[ ,2], ylim = c(-0.3, 0.7), 
+     xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
+     ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5,
+     cex.axis = 1.2, axes = FALSE)
+
+# Add axes
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+
+# Add points and labels 
+points(gummy.pcoa$points[ ,1], gummy.pcoa$points[ ,2],
+       pch = 19, cex = 2, bg = "gray", col = "gray")
+text(gummy.pcoa$points[ ,1], gummy.pcoa$points[ ,2],
+     labels = row.names(gummy.pcoa$points))
+
 ```
 
 **Answer 3c - Interpret results:** Write an informative yet succinct (~5 sentences) caption that creates a "stand-alone" figure. Take a peek at figures and figure captions in a paper published in your favorite journal for inspiration.
+> Figure 2. PCoA plot of gummy species community composition within sites. Sites within Community A are labeled 1-4 and sites within Community B are labeled 5-8. The PCoA axes represent the percent variation explained. We speculate that PCoA axis 1 explains the site variation in communities A and B since they form distinct clusters based on sites. Community A clusters on the left while community B clusters on the right.  
 
 
 ## SUBMITTING YOUR ASSIGNMENT
